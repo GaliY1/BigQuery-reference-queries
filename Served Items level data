@@ -1,0 +1,68 @@
+-- Served Items level data
+
+select  DATE(TIMESTAMP_MILLIS(pv.sessionStartTime)) AS date
+    --,left(pv.sourcePubItemId,INSTR(pv.sourcePubItemId,'/', 2)) as page_id
+    , datetime(TIMESTAMP_MILLIS(pv.pageViewStartTime))pv_time
+    ,pv.publisherid
+    ,pv.sourcePubItemId
+    ,pv.userid
+    ,pv.deviceid
+    ,pv.unifiedUserId hashed_email
+    ,pv.taboolaNewsOriginReferralType
+    ,pv.TaboolaNewsPageType
+    ,req.clientPlacement
+    ,pv.pageViewKey.sessionId
+    ,pv.journeyData.value
+    ,pv.pageViewKey.pageViewUniqueId
+        ,(datetime(TIMESTAMP_MILLIS(items.visibleEventTimeMillis)))item_visible_time
+    --,max(datetime(TIMESTAMP_MILLIS(items.visibleEventTimeMillis)))max_item_visible_time
+,pv.available pv_available
+, req.available req_available
+,pv.visible pv_visible
+,items.visible item_visible
+,items.clicked item_clicked
+--,pv.sourceItemId
+,items.itemid
+,v.title
+--,v.url as item_url
+,Items.dcData.itemType
+,items.dc is_ec_item
+--,v.publisher_id as providerid
+--,pr.description as provider_name
+,pv.sourceItemUrl
+--,pv.SessionDepth
+,pv.additionalDataProperties.sdkd.appv
+,pv.additionalDataProperties.sdkd.os
+--,pv.additionalDataProperties.sdkd.osv
+,pv.trackingCodes.customValue
+,pv.trackingCodes.customKey
+,pv.trackingCodes.campaign
+    ,pv.hasConsent
+    ,pv.consentDaisyBit
+    ,pv.privacyExternalFlags.isUsageApprovedByConsent
+    ,pv.requiresConsent
+    ,pv.gdprExplicitConsent
+,pv.userDemographicsInfo.userAgeUddIds
+,pv.userDemographicsInfo.userGenderUddIds
+  ,count(*) num_rows
+   -- from `taboola-data.pageviews.pageviews_*`  
+   FROM `taboola-data.derived_pageviews.user_percentile_pageviews_*`
+    join `taboola-data.trc.publishers` p on p.id= pv.publisherid
+    left join unnest(pv.requests) as req
+    LEFT JOIN unNEST(req.servedItems) AS items
+    left join `taboola-data.trc.videos_latest` v on v.id= items.itemid
+    --left join `taboola-data.trc.publishers` pr on pr.id= v.publisher_id
+   WHERE _TABLE_SUFFIX  between '20250630' and '20250630' --BETWEEN FORMAT_DATE('%Y%m%d',DATE_ADD(CURRENT_DATE(),INTERVAL -3 DAY)) AND FORMAT_DATE('%Y%m%d',DATE_ADD(CURRENT_DATE(),INTERVAL -1 DAY))
+    and publisherid  = 1836648
+    AND pv.botOrSpider = false
+    AND req.listId != 'rbox-tracking'
+    AND pv.useragent != 'taboolaNewsWarmupScript'
+
+   -- AND (pv.userid = TO_HEX(SHA256('9258e416a7dde3265ff3099f039c357d0f5a76485fca0dcbf746d30afa2109af'))) 
+  --  and pv.userid ='a84a0e6823cb7bb59a96255a2d5cb310965196bc3f5a5ea15ff1836fd88d578f'
+   -- and items.visible
+   -- and left(pv.sourcePubItemId,INSTR(pv.sourcePubItemId,'/', 2)) like '%news%'
+    -- and items.clicked
+  --  and pv.trackingCodes.customKey ='dc_data'
+    group by all
+    order by 5 desc
