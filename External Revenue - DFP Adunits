@@ -19,5 +19,7 @@ and  pv.available = true
 --and req.available = true
 And publisherId in (1403611)
 and dfp.type ='DFP_RENDERED' -- for dfp events only 
+-- and dfp.type = 'DFP_VISIBLE'
+-- and dfp.type ='DFP_VIEWABLE' 
 --and dfp.cpm != 1
 group by all
