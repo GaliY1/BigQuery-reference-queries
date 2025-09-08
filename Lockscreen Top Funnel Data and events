@@ -1,0 +1,86 @@
+SELECT
+    -- Publisher Data
+    p.name AS publisher_name,
+    pv.publisherid,
+    pv.deviceid,
+    pv.userid,
+    
+    -- PV and session data
+    DATE(sessionStartTimeTimeSlice) AS session_date,
+    TIMESTAMP_MILLIS(pv.pageViewStartTime) AS pv_start_time,
+    pv.pageViewKey.sessionId AS session_id,
+    pv.journeyData.value AS journey_value,
+    pv.pageViewKey.pageViewUniqueId AS pv_id,
+    pv.taboolaNewsPageType AS tn_page_type,
+    pv.taboolaNewsOriginReferralType AS tn_referral,
+    pv.sourcePubItemId,
+    pv.sourceItemType,
+    pv.sourceItemId,
+    pv.sourceItemUrl,
+    REGEXP_EXTRACT(pv.sourceItemUrl, r'(?:https?://[^/]+)?/([^/]+)/') AS page_type_by_sourceItemUrl,
+    pv.additionalDataProperties.sdkd.sdkt AS sdkt,
+    pv.trackingCodes.campaign AS utm_param,
+    pv.trackingCodes.customValue AS dc_data_customValue,
+    pv.trackingCodes.customKey AS dc_data_customKey,
+    pv.available AS pv_available,
+    pv.visible AS pv_visible,
+
+    -- Request Data
+    TIMESTAMP_TRUNC(TIMESTAMP_MILLIS(req.availableEventTimeMillis), Second, 'UTC') AS available_req_time,
+    SAFE_CAST(SPLIT(req.clientplacement, '')[SAFE_OFFSET(3)] AS INT) AS realtime_index,
+    req.listId,  -- contains 'rbox-tracking' or not
+    req.clientplacement AS placement,
+
+    -- Interaction Data
+    TIMESTAMP_MILLIS(interactionevents.eventtimestamp) AS interaction_event_t,
+    interactiondata.interactionId,
+    interactiondata.screenindex,
+    interactionevents.eventtype,
+
+    -- Items Data
+    serveditems.itemId,
+    serveditems.itemProviderType,
+    servedItems.dcData.itemType,
+    serveditems.syndicatorId,
+    apc.content_type AS syndicator_content_type,
+    servedItems.dc,
+    serveditems.visible AS item_visible,
+    serveditems.clicked AS item_clicked,
+
+    -- Supply Feature Events Data
+    events.additionalInfo AS supplyfeature_additionalInfo,
+    events.featureType AS supplyfeature_featureType,
+    events.key AS supplyfeature_key,
+    events.scope AS supplyfeature_scope,
+    events.stateType AS supplyfeature_stateType,
+    events.value AS supplyfeature_value,
+    JSON_EXTRACT_SCALAR(events.value, '$.s_index') AS supplyfeature_screen_index,
+    TIMESTAMP_TRUNC(TIMESTAMP_MILLIS(CAST(JSON_EXTRACT_SCALAR(events.value, "$.timestamp") AS INT64)), SECOND, 'UTC') AS supplyfeature_time_sec,
+
+    -- AB Test Events Data
+    TIMESTAMP_TRUNC(TIMESTAMP_MILLIS(ab_events.eventTime), Second, 'UTC') AS ab_event_time_sec,
+    ab_events.name AS ab_event_name,
+    ab_events.type AS ab_event_type,
+    (CASE WHEN ab_events.name = 'time_on_page' THEN SAFE_CAST(JSON_EXTRACT(ab_events.type, '$.performanceTotalTime') AS INT64) END) / 1000 AS session_total_time_sec,
+    SAFE_CAST(CASE WHEN ab_events.name = 'visible_time' THEN ab_events.type END AS FLOAT64) / 1000 AS visible_time_sec,
+
+    -- External Revenue DFP Events Data
+    dfp.type AS dfp_type,
+    dfp.adUnit AS dfp_ad_unit,
+    dfp.revenue AS dfp_revenue
+
+FROM `taboola-data.pageviews.pageviews_*`
+JOIN `taboola-data.trc.publishers` p ON p.id = pv.publisherid
+LEFT JOIN UNNEST(pv.requests) AS req
+LEFT JOIN UNNEST(req.servedItems) AS serveditems
+LEFT JOIN UNNEST(pv.abtestsWrapper.abTestSimpleEvents.abTestSimpleSingleList) AS ab_events
+LEFT JOIN UNNEST(pv.externalRevenueEvents) AS dfp
+LEFT JOIN `taboola-data.trc.ac_provider_configuration` apc ON apc.provider_id = serveditems.syndicatorId
+LEFT JOIN UNNEST(serveditems.interactiondata) AS interactiondata
+LEFT JOIN UNNEST(interactiondata.events) AS interactionevents
+LEFT JOIN UNNEST(pv.supplyFeatures) AS supplyfeature
+LEFT JOIN UNNEST(supplyfeature.value) AS events
+LEFT JOIN UNNEST(pv.experimentsInfo.experimentVariantInfos) AS experimentVariantInfos
+WHERE _TABLE_SUFFIX BETWEEN '20250109' AND '20250110'
+      AND pv.publisherid = 1387150 
+      AND pv.userid = TO_HEX(SHA256('eyaltestpv12312223'))
