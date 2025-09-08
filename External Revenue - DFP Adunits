@@ -1,0 +1,23 @@
+select
+ DATE(TIMESTAMP_MILLIS(pv.sessionStartTime)) AS date,
+--datetime(TIMESTAMP_MILLIS(dfp.eventTime)) event_time,
+pv.pageViewKey.pageViewUniqueId,
+pv.publisherid,
+dfp.adUnit,
+--dfp.cpm,
+--dfp.eventTime,
+sum(dfp.revenue) dfp_revenue,
+ count(1) as dfp_impressions_new
+from `taboola-data.pageviews.pageviews_*` 
+left join unnest(pv.externalRevenueEvents) as  dfp
+join `taboola-data.trc.ac_aggregator_configuration` agg on agg.aggregator_id=publisherid
+WHERE date(sessionStartTimeTimeSlice) between '2023-09-01' and '2023-09-02'-- _TABLE_SUFFIX between '20230412' and  '20230416'
+--and format_timestamp("%H", (TIMESTAMP_MILLIS(pv.pageViewStartTime))) in('00','01','02','03','04','05','06')
+ and pv.useragent != 'taboolaNewsWarmupScript'
+and pv.botOrSpider = false
+and  pv.available = true
+--and req.available = true
+And publisherId in (1403611)
+and dfp.type ='DFP_RENDERED' -- for dfp events only 
+--and dfp.cpm != 1
+group by all
