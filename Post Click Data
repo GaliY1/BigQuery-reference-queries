@@ -1,0 +1,60 @@
+SELECT
+    CASE
+    WHEN experimentVariantInfos.experimentVariantId = 26345 THEN 'Control (w Freeze)'
+    WHEN experimentVariantInfos.experimentVariantId = 26346 THEN 'Curated Content (w Freeze)'
+    ELSE CAST(experimentVariantInfos.experimentVariantId AS STRING)
+END AS variant,
+    LOWER(p.name) AS Publisher,
+    CASE
+    WHEN lower(pv.sourcePubItemId) LIKE '/collections/all-caught-up' THEN 'Collections Dummy (all-caught-up)'
+    WHEN lower(pv.sourcePubItemId) LIKE '/collections/formula 1' THEN 'Collections Dummy (Formula 1)'
+    WHEN lower(pv.sourcePubItemId) LIKE '/collections/football' THEN 'Collections Dummy (Football)'
+    WHEN lower(pv.sourcePubItemId) LIKE '/collections/fashion' THEN 'Collections Dummy (Fashion)'
+    WHEN lower(pv.sourcePubItemId) LIKE '/collections/science' THEN 'Collections Dummy (Science)'
+    WHEN lower(pv.sourcePubItemId) LIKE '/collections/movies' THEN 'Collections Dummy (Movies)'
+    WHEN lower(pv.sourcePubItemId) LIKE '/collections/tv' THEN 'Collections Dummy (TV)'
+    WHEN lower(pv.sourcePubItemId) LIKE 'lockscreen' THEN 'Top of the Funnel'
+    WHEN lower(pv.sourcePubItemId) LIKE '/scoop' THEN 'Top of the Funnel'
+    WHEN lower(pv.sourcePubItemId) LIKE '/ody' THEN 'Top of the Funnel'
+    WHEN lower(pv.sourcePubItemId) LIKE '/mip' THEN 'Top of the Funnel'
+    WHEN lower(pv.sourcePubItemId) LIKE '%/video-widget-dummy/%' THEN 'Video Widget Dummy'
+    WHEN lower(pv.sourcePubItemId) LIKE '%/astrology-widget/%' THEN 'Astrology'
+    WHEN lower(pv.sourcePubItemId) LIKE '%/new-article-page%' THEN 'Stories PP'
+    WHEN lower(pv.sourcePubItemId) LIKE '%/new-summary-page%' THEN 'Stories PP'
+    WHEN lower(pv.sourcePubItemId) LIKE '%/hub/interstitial%' THEN 'HUB Interstitial'
+    WHEN lower(pv.sourcePubItemId) LIKE '/video-widget/%' THEN 'Video Widget'
+    WHEN lower(pv.sourcePubItemId) LIKE '/collections/_%' THEN 'Collections'
+    WHEN lower(pv.sourcePubItemId) LIKE '%/video-page/%' THEN 'Vertical Video'
+    WHEN lower(pv.sourcePubItemId) LIKE '%preview-page%' THEN 'Preview Page'
+    WHEN lower(pv.sourcePubItemId) LIKE '%news-widget%' THEN 'News'
+    WHEN lower(pv.sourcePubItemId) LIKE '%/weather%' THEN 'Weather'
+    WHEN lower(pv.sourcePubItemId) LIKE '%/article%' THEN 'MGZ PP'
+    WHEN lower(pv.sourcePubItemId) LIKE '%/summary%' THEN 'MGZ PP'
+    WHEN lower(pv.sourcePubItemId) LIKE '%/ad-page%' THEN 'CS ad'
+    WHEN lower(pv.sourcePubItemId) LIKE '%/video/%' THEN 'C2V'
+    WHEN lower(pv.sourcePubItemId) LIKE '%sports%' THEN 'Sports'
+    WHEN lower(pv.sourcePubItemId) LIKE '%/today%' THEN 'Today'
+    WHEN lower(pv.sourcePubItemId) LIKE '%games%' THEN 'Games'
+    ELSE CAST(pv.sourcePubItemId AS STRING)
+END AS source,
+--     pv.sourcePubItemId,
+    COUNT(DISTINCT pv.userID) as Users,
+    COUNT(DISTINCT pv.pageViewKey.sessionId) as sessions,
+    COUNT(DISTINCT pv.journeyData.value) AS Journeys,
+    COUNT(DISTINCT pv.pageViewKey.pageViewUniqueId) as pvs,
+    SUM(CASE WHEN items.itemProviderType = 'SP' AND items.dc = FALSE then items.totalRevenueIncludingFeesInPublisherCurrency * items.usdcurrencyConversionRate end) as sc_revenue
+FROM
+    `taboola-data.pageviews.pageviews_*`
+    JOIN taboola-data.trc.publishers p on p.id= pv.publisherid
+    LEFT JOIN UNNEST(pv.requests) AS req
+    LEFT JOIN UNNEST(req.servedItems) AS items
+    LEFT JOIN UNNEST(pv.experimentsInfo.experimentVariantInfos) AS experimentVariantInfos
+WHERE
+    _TABLE_SUFFIX BETWEEN '20250813' AND '20250813'
+    AND pv.botOrSpider = FALSE
+    AND pv.useragent != 'taboolaNewsWarmupScript'
+    AND pv.publisherid IN (1528223,1731583,1870614)
+    AND experimentVariantInfos.experimentVariantId IN (26345, 26346)
+    AND pv.taboolaNewsPageType != 'main'
+GROUP BY ALL
+ORDER BY 1,2,3,4
