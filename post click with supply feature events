@@ -1,0 +1,75 @@
+              INSERT INTO analysts-data.taboola_news_pa_abtests.market_level_curation_postclickdata
+            SELECT
+                date(sessionStartTimeTimeSlice) as date,
+                CASE
+    WHEN experimentVariantInfos.experimentVariantId = 26345 THEN 'Control (w Freeze)'
+    WHEN experimentVariantInfos.experimentVariantId = 26346 THEN 'Curated Content (w Freeze)'
+    ELSE CAST(experimentVariantInfos.experimentVariantId AS STRING)
+END AS variant,
+                p.name AS publisher_name,
+                pv.publisherID as publisher_id,
+                CASE
+    WHEN lower(pv.sourcePubItemId) LIKE '/collections/all-caught-up' THEN 'Collections Dummy (all-caught-up)'
+    WHEN lower(pv.sourcePubItemId) LIKE '/collections/formula 1' THEN 'Collections Dummy (Formula 1)'
+    WHEN lower(pv.sourcePubItemId) LIKE '/collections/football' THEN 'Collections Dummy (Football)'
+    WHEN lower(pv.sourcePubItemId) LIKE '/collections/fashion' THEN 'Collections Dummy (Fashion)'
+    WHEN lower(pv.sourcePubItemId) LIKE '/collections/science' THEN 'Collections Dummy (Science)'
+    WHEN lower(pv.sourcePubItemId) LIKE '/collections/movies' THEN 'Collections Dummy (Movies)'
+    WHEN lower(pv.sourcePubItemId) LIKE '/collections/tv' THEN 'Collections Dummy (TV)'
+    WHEN lower(pv.sourcePubItemId) LIKE 'lockscreen' THEN 'Top of the Funnel'
+    WHEN lower(pv.sourcePubItemId) LIKE '/scoop' THEN 'Top of the Funnel'
+    WHEN lower(pv.sourcePubItemId) LIKE '/ody' THEN 'Top of the Funnel'
+    WHEN lower(pv.sourcePubItemId) LIKE '/mip' THEN 'Top of the Funnel'
+    WHEN lower(pv.sourcePubItemId) LIKE '%/video-widget-dummy/%' THEN 'Video Widget Dummy'
+    WHEN lower(pv.sourcePubItemId) LIKE '%/astrology-widget/%' THEN 'Astrology'
+    WHEN lower(pv.sourcePubItemId) LIKE '%/new-summary-page%' THEN 'Stories PP'
+    WHEN lower(pv.sourcePubItemId) LIKE '%/new-article-page%' THEN 'Stories PP'
+    WHEN lower(pv.sourcePubItemId) LIKE '%/hub/interstitial%' THEN 'HUB Interstitial'
+    WHEN lower(pv.sourcePubItemId) LIKE '/video-widget/%' THEN 'Video Widget'
+    WHEN lower(pv.sourcePubItemId) LIKE '/collections/_%' THEN 'Collections'
+    WHEN lower(pv.sourcePubItemId) LIKE '%/video-page/%' THEN 'Vertical Video'
+    WHEN lower(pv.sourcePubItemId) LIKE '%preview-page%' THEN 'Preview Page'
+    WHEN lower(pv.sourcePubItemId) LIKE '%news-widget%' THEN 'News'
+    WHEN lower(pv.sourcePubItemId) LIKE '%/article%' THEN 'MGZ PP'
+    WHEN lower(pv.sourcePubItemId) LIKE '%/summary%' THEN 'MGZ PP'
+    WHEN lower(pv.sourcePubItemId) LIKE '%/weather%' THEN 'Weather'
+    WHEN lower(pv.sourcePubItemId) LIKE '%/ad-page%' THEN 'CS ad'
+    WHEN lower(pv.sourcePubItemId) LIKE '%/video/%' THEN 'C2V'
+    WHEN lower(pv.sourcePubItemId) LIKE '%sports%' THEN 'Sports'
+    WHEN lower(pv.sourcePubItemId) LIKE '%/today%' THEN 'Today'
+    WHEN lower(pv.sourcePubItemId) LIKE '%games%' THEN 'Games'
+    ELSE CAST(pv.sourcePubItemId AS STRING)
+END AS source,
+                pv.userID,
+                pv.pageViewKey.sessionId AS session_id,
+                pv.journeyData.value AS journey_id,
+                pv.pageViewKey.pageViewUniqueId AS page_view_id,
+                pv.pageViewStartTime,
+                pv.sessionDepth,
+                pv.sourcePubItemId,
+                pv.taboolaNewsOriginReferralType as referral,
+                MAX(CASE WHEN sfevents.featureType IN ('ASTROLOGY_WIDGET_CLICKED') THEN 1 ELSE 0 END) AS was_astrology_clicked,
+    MAX(CASE WHEN sfevents.featureType IN ('SCROLL') THEN 1 ELSE 0 END) AS was_scrolled,
+    MAX(CASE WHEN sfevents.featureType IN ('LIKE_BUTTON') THEN 1 ELSE 0 END) AS was_liked,
+    MAX(CASE WHEN sfevents.featureType IN ('COLLECTION_WIDGET_CLICKED') THEN 1 ELSE 0 END) AS was_collections_clicked,
+    MAX(CASE WHEN sfevents.featureType IN ('VIDEO_SEEK_START') THEN 1 ELSE 0 END) AS was_video_seeked,
+    MAX(CASE WHEN sfevents.featureType IN ('SHARE_CONTENT') THEN 1 ELSE 0 END) AS was_share_clicked,
+    MAX(CASE WHEN sfevents.featureType IN ('SOUND_TOGGLE') THEN 1 ELSE 0 END) AS was_unmuted,
+    MAX(CASE WHEN sfevents.featureType IN ('WEATHER_WIDGET_CLICKED') THEN 1 ELSE 0 END) AS was_weather_tile_clicked,
+    MAX(CASE WHEN sfevents.featureType IN ('CONTENT_PAUSED') THEN 1 ELSE 0 END) AS was_paused,
+    MAX(CASE WHEN (sfevents.featureType IN ('READ_MORE') AND sfevents.value = 'visible') THEN 1 ELSE 0 END) AS read_more_visible,
+    MAX(CASE WHEN (sfevents.featureType IN ('READ_MORE') AND sfevents.value = 'click') THEN 1 ELSE 0 END) AS read_more_click
+            FROM `taboola-data.pageviews.pageviews_*`
+                JOIN taboola-data.trc.publishers p on p.id= pv.publisherid
+                LEFT JOIN UNNEST (pv.experimentsInfo.experimentVariantInfos) AS experimentVariantInfos
+                LEFT JOIN UNNEST(pv.abtestsWrapper.abTestSimpleEvents.abTestSimpleSingleList) AS abevents
+                LEFT JOIN UNNEST(pv.supplyFeatures) AS supplyfeature
+                LEFT JOIN UNNEST(supplyfeature.value) AS sfevents
+            WHERE
+                _TABLE_SUFFIX BETWEEN '20250814' AND '20250831'
+                AND pv.botOrSpider = FALSE
+                AND pv.useragent != 'taboolaNewsWarmupScript'
+                AND pv.publisherid IN (1528223,1731583,1870614)
+                AND experimentVariantInfos.experimentVariantId IN (26345, 26346)
+                AND pv.taboolaNewsPageType != 'main'
+                GROUP BY ALL
