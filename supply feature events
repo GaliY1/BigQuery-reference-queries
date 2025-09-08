@@ -1,0 +1,29 @@
+--fill user_id ,publisher_id ,date,event_name
+
+select
+pv.userid,
+pv.deviceid,
+TO_HEX(SHA256(pv.userid)) as hashed_user_id,
+pv.pageViewKey.pageViewUniqueId,
+pv.taboolaNewsOriginReferralType,
+pv.taboolaNewsPageType,
+pv.sourcePubItemId,
+TIMESTAMP_MILLIS(pv.pageviewStartTime) as pv_time,
+events.featureType,
+events.value,
+TIMESTAMP_MILLIS(cast(JSON_EXTRACT_SCALAR(events.value, '$.timestamp') AS INT64)) AS event_timestamp,
+max(CAST(JSON_EXTRACT_SCALAR(events.value, '$.gam_ai') AS string)) AS ad_id,
+max(CAST(JSON_EXTRACT_SCALAR(events.value, '$.gam_nx') AS int64)) AS gam_nx,
+max(CAST(JSON_EXTRACT_SCALAR(events.value, '$.gam_ny') AS int64)) AS gam_ny,
+from `taboola-data.pageviews.pageviews_*`
+--FROM `taboola-data.derived_pageviews.user_percentile_pageviews_*`
+join `taboola-data.trc.publishers` p on p.id= pv.publisherid
+left join unnest(pv.supplyFeatures) as supplyfeature
+left join unnest(supplyfeature.value) as events
+WHERE _TABLE_SUFFIX BETWEEN '20250824' AND '20250824'
+and publisherid = 1571153
+and ((pv.userid = 'a957dc1362a8e3ca8c6a973e629ac6099f7e0e7dd2a2184b1362ce3267f97950') or (pv.userid=TO_HEX(SHA256('a957dc1362a8e3ca8c6a973e629ac6099f7e0e7dd2a2184b1362ce3267f97950'))))
+and supplyfeature.key = 'AD_CLICKED'
+-- and network.network_id = 1527622
+AND pv.useragent != 'taboolaNewsWarmupScript'
+group by all
